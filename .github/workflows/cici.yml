@@ -1,0 +1,1037 @@
+# .github/workflows/cici.yml
+
+name: CICI Workflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  CCACHE_DIR: /ws/ccache
+  MAKEFLAGS: -j2
+
+jobs:
+  cogutil:
+    name: CogUtil Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Start restoring ccache
+        run: date +%d-%m-%Y > /tmp/date
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: /ws/ccache
+          key: ccache-${{ hashFiles('/tmp/date') }}
+          restore-keys: |
+            ccache-
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload cogutil artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cogutil
+          path: /ws/cogutil
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  atomspace:
+    name: AtomSpace Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        PGHOST: opencog-postgres
+        PGUSER: opencog_test
+        PGPASSWORD: cheese
+        CCACHE_DIR: /ws/ccache
+    needs: cogutil
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download cogutil artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cogutil
+          path: /ws/cogutil
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Restore GHC Cache
+        uses: actions/cache@v4
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
+          restore-keys: |
+            ghc-
+
+      - name: Restore Haskell Deps Cache
+        uses: actions/cache@v4
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
+          restore-keys: |
+            haskelldeps-
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Checkout AtomSpace
+        run: |
+          git clone --depth 1 https://github.com/opencog/atomspace /ws/atomspace
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check
+
+      - name: Install AtomSpace
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Save GHC Cache
+        uses: actions/cache@v4
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
+
+      - name: Save Haskell Deps Cache
+        uses: actions/cache@v4
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
+          restore-keys: |
+            haskelldeps-
+
+      - name: Upload atomspace artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  cogserver:
+    name: CogServer Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: atomspace
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download cogutil artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cogutil
+          path: /ws/cogutil
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make -j2 install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Checkout CogServer
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogserver /ws/cogserver
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check
+
+      - name: Install CogServer
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload cogserver artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cogserver
+          path: /ws/cogserver
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  attention:
+    name: Attention Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: cogserver
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download cogserver artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cogserver
+          path: /ws/cogserver
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Restore GHC Cache
+        uses: actions/cache@v4
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
+          restore-keys: |
+            ghc-
+
+      - name: Restore Haskell Deps Cache
+        uses: actions/cache@v4
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
+          restore-keys: |
+            haskelldeps-
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Install CogServer
+        run: |
+          cd /ws/cogserver/build
+          make install
+          ldconfig
+
+      - name: Checkout Attention
+        run: |
+          git clone --depth 1 https://github.com/opencog/attention /ws/attention
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Install Attention
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload attention artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: attention
+          path: /ws/attention
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  unify:
+    name: Unify Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: atomspace
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Checkout Unify
+        run: |
+          git clone --depth 1 https://github.com/opencog/unify /ws/unify
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Install Unify
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload unify artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unify
+          path: /ws/unify
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  ure:
+    name: URE Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: [atomspace, unify]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download unify artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unify
+          path: /ws/unify
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Install Unify
+        run: |
+          cd /ws/unify/build
+          make install
+          ldconfig
+
+      - name: Checkout URE
+        run: |
+          git clone --depth 1 https://github.com/opencog/ure /ws/ure
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Install URE
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload ure artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ure
+          path: /ws/ure
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  miner:
+    name: Miner Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: ure
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download ure artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ure
+          path: /ws/ure
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Restore GHC Cache
+        uses: actions/cache@v4
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
+          restore-keys: |
+            ghc-
+
+      - name: Restore Haskell Deps Cache
+        uses: actions/cache@v4
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
+          restore-keys: |
+            haskelldeps-
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Install Unify
+        run: |
+          cd /ws/unify/build
+          make install
+          ldconfig
+
+      - name: Install URE
+        run: |
+          cd /ws/ure/build
+          make install
+          ldconfig
+
+      - name: Checkout Miner
+        run: |
+          git clone --depth 1 https://github.com/opencog/miner /ws/miner
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Install Miner
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload miner artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miner
+          path: /ws/miner
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  asmoses:
+    name: AS-MOSES Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: [cogutil, atomspace, ure]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download cogutil artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cogutil
+          path: /ws/cogutil
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download ure artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ure
+          path: /ws/ure
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Install Unify
+        run: |
+          cd /ws/unify/build
+          make install
+          ldconfig
+
+      - name: Install URE
+        run: |
+          cd /ws/ure/build
+          make install
+          ldconfig
+
+      - name: Checkout AS-MOSES
+        run: |
+          git clone --depth 1 https://github.com/opencog/asmoses /ws/asmoses
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Install AS-MOSES
+        run: |
+          cd build
+          make install
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload asmoses artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: asmoses
+          path: /ws/asmoses
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  opencog:
+    name: OpenCog Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: [atomspace, ure, cogserver, attention]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download atomspace artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: atomspace
+          path: /ws/atomspace
+
+      - name: Download ure artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ure
+          path: /ws/ure
+
+      - name: Download cogserver artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cogserver
+          path: /ws/cogserver
+
+      - name: Download attention artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: attention
+          path: /ws/attention
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Restore GHC Cache
+        uses: actions/cache@v4
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
+          restore-keys: |
+            ghc-
+
+      - name: Restore Haskell Deps Cache
+        uses: actions/cache@v4
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
+          restore-keys: |
+            haskelldeps-
+
+      - name: Set number of make jobs
+        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
+
+      - name: Install CogUtil
+        run: |
+          cd /ws/cogutil/build
+          make install
+          ldconfig
+
+      - name: Install AtomSpace
+        run: |
+          cd /ws/atomspace/build
+          make install
+          ldconfig
+
+      - name: Install CogServer
+        run: |
+          cd /ws/cogserver/build
+          make install
+          ldconfig
+
+      - name: Install Attention
+        run: |
+          cd /ws/attention/build
+          make install
+          ldconfig
+
+      - name: Install Unify
+        run: |
+          cd /ws/unify/build
+          make install
+          ldconfig
+
+      - name: Install URE
+        run: |
+          cd /ws/ure/build
+          make install
+          ldconfig
+
+      - name: Install Link Grammar Atomese
+        run: |
+          git clone --depth 1 https://github.com/opencog/lg-atomese /ws/lg-atomese
+          mkdir -p /ws/lg-atomese/build
+          cd /ws/lg-atomese/build
+          cmake ..
+          make -j2
+          make -j2 install
+          ldconfig
+
+      - name: Checkout OpenCog
+        run: |
+          git clone --depth 1 https://github.com/opencog/opencog /ws/opencog
+
+      - name: CMake Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+
+      - name: Build
+        run: |
+          cd build
+          make
+
+      - name: Build tests
+        run: |
+          cd build
+          make tests
+
+      - name: Run tests
+        run: |
+          cd build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Install OpenCog
+        run: |
+          cd build
+          make install
+          ldconfig
+
+      - name: Print test log
+        if: always()
+        run: |
+          cat build/tests/Testing/Temporary/LastTest.log
+
+      - name: Upload opencog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencog
+          path: /ws/opencog
+
+      - name: Upload ccache artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+  package:
+    name: Package Job
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+      env:
+        CCACHE_DIR: /ws/ccache
+    needs: opencog
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download opencog artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: opencog
+          path: /ws/opencog
+
+      - name: Download ccache artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ccache
+          path: /ws/ccache
+
+      - name: Build Debian package
+        run: |
+          cd /ws/cogutil/build
+          make install
+          make package
+
+      - name: Store Package Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: /ws/cogutil/build/packages/
+
+      - name: Start storing ccache
+        run: date +%d-%m-%Y > /tmp/date
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: /ws/ccache
+          key: ccache-${{ hashFiles('/tmp/date') }}
+          restore-keys: |
+            ccache-
