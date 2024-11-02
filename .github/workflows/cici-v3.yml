@@ -1,0 +1,298 @@
+# .github/workflows/cici-v3.yml
+
+name: CICI v3
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  MAKEFLAGS: -j2
+
+jobs:
+  cogutil:
+    name: CogUtil Job
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
+
+      # Step 3: Clone and Build cogutil
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Run Tests for cogutil
+      - name: Run cogutil Tests
+        run: |
+          cd ./cogutil/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 5: Print Test Log for cogutil
+      - name: Print cogutil Test Log
+        if: always()
+        run: |
+          cat ./cogutil/build/tests/Testing/Temporary/LastTest.log
+
+  atomspace:
+    name: AtomSpace Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
+
+      # Step 3: Clone and Build cogutil (Dependency)
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build atomspace
+      - name: Clone atomspace
+        run: |
+          git clone --depth 1 https://github.com/opencog/atomspace ./atomspace
+
+      - name: Build atomspace
+        run: |
+          mkdir -p ./atomspace/build
+          cd ./atomspace/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Run Tests for atomspace
+      - name: Run atomspace Tests
+        run: |
+          cd ./atomspace/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 6: Print Test Log for atomspace
+      - name: Print atomspace Test Log
+        if: always()
+        run: |
+          cat ./atomspace/build/tests/Testing/Temporary/LastTest.log
+
+  # Repeat similar job structures for other components like cogserver, attention, etc.
+  # Each job should clone and build its own dependencies from scratch without using artifacts or caching.
+
+  # Example for cogserver:
+  cogserver:
+    name: CogServer Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
+
+      # Step 3: Clone and Build cogutil (Dependency)
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build cogserver
+      - name: Clone cogserver
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogserver ./cogserver
+
+      - name: Build cogserver
+        run: |
+          mkdir -p ./cogserver/build
+          cd ./cogserver/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Run Tests for cogserver
+      - name: Run cogserver Tests
+        run: |
+          cd ./cogserver/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 6: Print Test Log for cogserver
+      - name: Print cogserver Test Log
+        if: always()
+        run: |
+          cat ./cogserver/build/tests/Testing/Temporary/LastTest.log
+
+  # Add additional jobs following the same pattern for other components
+
+  # Example for package:
+  package:
+    name: Package Job
+    runs-on: ubuntu-latest
+    needs: [cogutil, atomspace, cogserver]  # Add other dependencies as needed
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
+
+      # Step 3: Clone and Build cogutil
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build atomspace
+      - name: Clone atomspace
+        run: |
+          git clone --depth 1 https://github.com/opencog/atomspace ./atomspace
+
+      - name: Build atomspace
+        run: |
+          mkdir -p ./atomspace/build
+          cd ./atomspace/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Clone and Build cogserver
+      - name: Clone cogserver
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogserver ./cogserver
+
+      - name: Build cogserver
+        run: |
+          mkdir -p ./cogserver/build
+          cd ./cogserver/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 6: Clone and Build package
+      - name: Clone package
+        run: |
+          git clone --depth 1 https://github.com/opencog/package ./package
+
+      - name: Build package
+        run: |
+          mkdir -p ./package/build
+          cd ./package/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 7: Run Tests for package (if applicable)
+      - name: Run package Tests
+        run: |
+          cd ./package/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 8: Print Test Log for package
+      - name: Print package Test Log
+        if: always()
+        run: |
+          cat ./package/build/tests/Testing/Temporary/LastTest.log
+
+      # Step 9: Build Debian Package
+      - name: Build Debian Package
+        run: |
+          cd ./cogutil/build
+          make package
+
+      # Step 10: Upload Package Artifacts
+      - name: Upload Package Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./cogutil/build/packages/
