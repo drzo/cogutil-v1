@@ -1,0 +1,154 @@
+# .github/workflows/cici-v5.yml
+
+name: CICI v5
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  MAKEFLAGS: -j2
+
+jobs:
+  cogutil:
+    name: CogUtil Job
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      # Step 3: Clone and Build cogutil
+      - name: Clone and Build cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Run cogutil Tests
+      - name: Run cogutil Tests
+        run: |
+          cd ./cogutil/build
+          ctest --output-on-failure
+
+      # Step 5: Print cogutil Test Log
+      - name: Print cogutil Test Log
+        if: always()
+        run: |
+          cat ./cogutil/build/tests/Testing/Temporary/LastTest.log || echo "Test log not found."
+
+      # Step 6: Build Debian Package (if applicable)
+      - name: Build Debian Package for cogutil
+        run: |
+          cd ./cogutil/build
+          make package || echo "Package target not defined."
+
+      # Step 7: Upload Package Artifacts (if applicable)
+      - name: Upload cogutil Package Artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cogutil-packages
+          path: ./cogutil/build/packages/ || echo "No packages to upload."
+  
+  # Example for AtomSpace Job
+  atomspace:
+    name: AtomSpace Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      # Step 3: Clone and Build cogutil (Dependency)
+      - name: Clone and Build cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build atomspace
+      - name: Clone and Build atomspace
+        run: |
+          git clone --depth 1 https://github.com/opencog/atomspace ./atomspace
+          mkdir -p ./atomspace/build
+          cd ./atomspace/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Run atomspace Tests
+      - name: Run atomspace Tests
+        run: |
+          cd ./atomspace/build
+          ctest --output-on-failure
+
+      # Step 6: Print atomspace Test Log
+      - name: Print atomspace Test Log
+        if: always()
+        run: |
+          cat ./atomspace/build/tests/Testing/Temporary/LastTest.log || echo "Test log not found."
+
+      # Step 7: Build Debian Package (if applicable)
+      - name: Build Debian Package for atomspace
+        run: |
+          cd ./atomspace/build
+          make package || echo "Package target not defined."
+
+      # Step 8: Upload atomspace Package Artifacts (if applicable)
+      - name: Upload atomspace Package Artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atomspace-packages
+          path: ./atomspace/build/packages/ || echo "No packages to upload."
+
+  # Repeat similar job structures for cogserver, attention, unify, ure, miner, asmoses, opencog, and package.
+  # Each job should:
+  # - Install system dependencies
+  # - Clone and build its dependencies from scratch
+  # - Clone and build its own component
+  # - Run tests using ctest
+  # - Print test logs
+  # - Build and upload Debian packages (if applicable)
