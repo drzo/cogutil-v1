@@ -1,6 +1,6 @@
-# .github/workflows/cici-workflow.yml
+# .github/workflows/cici-workflow-linear.yml
 
-name: CICI Workflow
+name: CICI Workflow LINEAR
 
 on:
   push:
