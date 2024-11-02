@@ -1,4 +1,4 @@
-name: Build-Test-Package Workflow
+name: CICI Workflow
 
 on:
   push:
@@ -10,21 +10,21 @@ on:
 
 jobs:
   cogutil:
-    docker:
-      - image: opencog/opencog-deps
-        user: root
-        environment:
-          CCACHE_DIR: /ws/ccache
-    working_directory: /ws/cogutil
+#    docker:
+#      - image: opencog/opencog-deps
+#        user: root
+#        environment:
+#          CCACHE_DIR: /ws/ccache
+#    working_directory: /ws/cogutil
     steps:
-      - run:
-          name: Start restoring ccache
-          command: date +%d-%m-%Y > /tmp/date
-      - restore_cache:
-          keys:
-            - ccache-{{ checksum "/tmp/date" }}
-            - ccache-
-      - checkout
+#      - run:
+#          name: Start restoring ccache
+#          command: date +%d-%m-%Y > /tmp/date
+#      - restore_cache:
+#          keys:
+#            - ccache-{{ checksum "/tmp/date" }}
+#            - ccache-
+#      - checkout
       - run:
           name: Set number of make jobs
           command: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
@@ -44,11 +44,11 @@ jobs:
           name: Print test log
           command: cat build/tests/Testing/Temporary/LastTest.log
           when: always
-      - persist_to_workspace:
-          root: /ws/
-          paths:
-            - cogutil
-            - ccache
+#      - persist_to_workspace:
+#          root: /ws/
+#          paths:
+#            - cogutil
+#            - ccache
 
   atomspace:
     docker:
