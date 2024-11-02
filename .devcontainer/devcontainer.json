@@ -1,0 +1,38 @@
+// .devcontainer/devcontainer.json
+{
+  "name": "OpenCog Development Container",
+  "image": "opencog/opencog-deps:latest",
+  "runArgs": [
+    "--user", "root"
+  ],
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
+    "cmake.configureOnOpen": true
+  },
+  "extensions": [
+    "ms-vscode.cpptools",
+    "ms-vscode.makefile-tools",
+    "ms-vscode.cmake-tools",
+    "esbenp.prettier-vscode",
+    "eamodio.gitlens"
+  ],
+  "mounts": [
+    "source=${localWorkspaceFolder}/.cache,target=/ws/ccache,type=bind,consistency=cached"
+  ],
+  "remoteUser": "root",
+  "postCreateCommand": "echo 'MAKEFLAGS=-j2' >> /etc/environment",
+  "remoteEnv": {
+    "CCACHE_DIR": "/ws/ccache",
+    "MAKEFLAGS": "-j2"
+  },
+  "forwardPorts": [
+    5432
+  ],
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "features": {
+    "ghcr.io/devcontainers/features/cmake:1": {},
+    "ghcr.io/devcontainers/features/ccache:1": {}
+  }
+}
