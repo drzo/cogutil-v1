@@ -1,0 +1,140 @@
+name: Build-Test-Package Workflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  cogutil:
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+    env:
+      CCACHE_DIR: /ws/ccache
+    defaults:
+      run:
+        working-directory: /ws/cogutil
+    steps:
+      - name: Start restoring ccache
+        run: date +%d-%m-%Y > /tmp/date
+      - name: Restore ccache
+        uses: actions/cache@v2
+        with:
+          path: /ws/ccache
+          key: ccache-${{ hashFiles('/tmp/date') }}
+      - uses: actions/checkout@v2
+      - name: Set number of make jobs
+        run: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - name: CMake Configure
+        run: mkdir build && cd build && cmake ..
+      - name: Build
+        run: cd build && make
+      - name: Build tests
+        run: cd build && make tests
+      - name: Run tests
+        run: cd build && make check ARGS="$MAKEFLAGS"
+      - name: Print test log
+        if: always()
+        run: cat build/tests/Testing/Temporary/LastTest.log
+      - name: Persist workspace
+        uses: actions/upload-artifact@v2
+        with:
+          name: cogutil
+          path: /ws/cogutil
+
+  atomspace:
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+    env:
+      PGHOST: opencog-postgres
+      PGUSER: opencog_test
+      PGPASSWORD: cheese
+      CCACHE_DIR: /ws/ccache
+    defaults:
+      run:
+        working-directory: /ws/atomspace
+    services:
+      postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+    steps:
+      - name: Restore workspace
+        uses: actions/download-artifact@v2
+        with:
+          name: cogutil
+          path: /ws
+      - name: Set number of make jobs
+        run: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - name: Install CogUtil
+        run: cd /ws/cogutil/build && make install && ldconfig
+      - name: Checkout AtomSpace
+        run: git clone --depth 1 https://github.com/opencog/atomspace .
+      - name: Restore GHC Cache
+        uses: actions/cache@v2
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}
+      - name: Restore Haskell Deps Cache
+        uses: actions/cache@v2
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml', '/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}
+      - name: CMake Configure
+        run: mkdir build && cd build && cmake ..
+      - name: Build
+        run: cd build && make
+      - name: Build tests
+        run: cd build && make tests
+      - name: Run tests
+        run: cd build && make check
+      - name: Install AtomSpace
+        run: cd build && make install && ldconfig
+      - name: Print test log
+        if: always()
+        run: cat build/tests/Testing/Temporary/LastTest.log
+      - name: Save GHC Cache
+        uses: actions/cache@v2
+        with:
+          path: /root/.stack
+          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}
+      - name: Save Haskell Deps Cache
+        uses: actions/cache@v2
+        with:
+          path: /ws/atomspace/opencog/haskell/.stack-work
+          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml', '/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}
+
+  # Additional jobs (cogserver, attention, unify, ure, miner, asmoses, opencog, package)
+  # follow a similar pattern as above with specifics adjusted per each job's requirements.
+
+  package:
+    runs-on: ubuntu-latest
+    container:
+      image: opencog/opencog-deps
+      options: --user root
+    steps:
+      - name: Restore workspace
+        uses: actions/download-artifact@v2
+        with:
+          name: cogutil
+          path: /ws
+      - name: Build Debian package
+        run: cd build && make install && make package
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: packages
+          path: build/packages/
+      - name: Save ccache
+        uses: actions/cache@v2
+        with:
+          path: /ws/ccache
+          key: ccache-${{ hashFiles('/tmp/date') }}
