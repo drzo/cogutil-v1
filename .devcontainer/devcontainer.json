@@ -1,7 +1,10 @@
 // .devcontainer/devcontainer.json
 {
   "name": "OpenCog Development Container",
-  "image": "opencog/opencog-deps:latest",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
   "runArgs": [
     "--user", "root"
   ],
@@ -30,9 +33,5 @@
     5432
   ],
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-  "features": {
-    "ghcr.io/devcontainers/features/cmake:1": {},
-    "ghcr.io/devcontainers/features/ccache:1": {}
-  }
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
 }
