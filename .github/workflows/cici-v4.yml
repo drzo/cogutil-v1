@@ -1,0 +1,302 @@
+# .github/workflows/cici.yml
+
+name: CICI v4
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  MAKEFLAGS: -j2
+
+jobs:
+  cogutil:
+    name: CogUtil Job
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the main repository (if applicable)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      # Step 3: Clone and Build cogutil
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Run Tests for cogutil
+      - name: Run cogutil Tests
+        run: |
+          cd ./cogutil/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 5: Print Test Log for cogutil
+      - name: Print cogutil Test Log
+        if: always()
+        run: |
+          cat ./cogutil/build/tests/Testing/Temporary/LastTest.log
+
+  atomspace:
+    name: AtomSpace Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      # Step 3: Clone and Build cogutil (Dependency)
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build atomspace
+      - name: Clone atomspace
+        run: |
+          git clone --depth 1 https://github.com/opencog/atomspace ./atomspace
+
+      - name: Build atomspace
+        run: |
+          mkdir -p ./atomspace/build
+          cd ./atomspace/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Run Tests for atomspace
+      - name: Run atomspace Tests
+        run: |
+          cd ./atomspace/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 6: Print Test Log for atomspace
+      - name: Print atomspace Test Log
+        if: always()
+        run: |
+          cat ./atomspace/build/tests/Testing/Temporary/LastTest.log
+
+  cogserver:
+    name: CogServer Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+
+    services:
+      opencog-postgres:
+        image: opencog/postgres
+        env:
+          POSTGRES_USER: opencog_test
+          POSTGRES_PASSWORD: cheese
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install System Dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      # Step 3: Clone and Build cogutil (Dependency)
+      - name: Clone cogutil
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 4: Clone and Build cogserver
+      - name: Clone cogserver
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogserver ./cogserver
+
+      - name: Build cogserver
+        run: |
+          mkdir -p ./cogserver/build
+          cd ./cogserver/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 5: Run Tests for cogserver
+      - name: Run cogserver Tests
+        run: |
+          cd ./cogserver/build
+          make check ARGS="$MAKEFLAGS"
+
+      # Step 6: Print Test Log for cogserver
+      - name: Print cogserver Test Log
+        if: always()
+        run: |
+          cat ./cogserver/build/tests/Testing/Temporary/LastTest.log
+
+  # Additional Jobs for Other Components (attention, unify, ure, miner, asmoses, opencog, package)
+  # Each job follows the same structure: Install dependencies, clone & build dependencies, clone & build the component, run tests, print logs
+
+  attention:
+    name: Attention Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      - name: Clone and Build cogutil (Dependency)
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      - name: Clone and Build attention
+        run: |
+          git clone --depth 1 https://github.com/opencog/attention ./attention
+
+      - name: Build attention
+        run: |
+          mkdir -p ./attention/build
+          cd ./attention/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      - name: Run attention Tests
+        run: |
+          cd ./attention/build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Print attention Test Log
+        if: always()
+        run: |
+          cat ./attention/build/tests/Testing/Temporary/LastTest.log
+
+  # Repeat similar job structures for unify, ure, miner, asmoses, opencog, and package
+
+  unify:
+    name: Unify Job
+    runs-on: ubuntu-latest
+    needs: cogutil
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev libboost-all-dev
+
+      - name: Clone and Build cogutil (Dependency)
+        run: |
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
+
+      - name: Build cogutil
+        run: |
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      - name: Clone and Build unify
+        run: |
+          git clone --depth 1 https://github.com/opencog/unify ./unify
+
+      - name: Build unify
+        run: |
+          mkdir -p ./unify/build
+          cd ./unify/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      - name: Run unify Tests
+        run: |
+          cd ./unify/build
+          make check ARGS="$MAKEFLAGS"
+
+      - name: Print unify Test Log
+        if: always()
+        run: |
+          cat ./unify/build/tests/Testing/Temporary/LastTest.log
+
+  # Continue defining jobs for ure, miner, asmoses, opencog, and package similarly
