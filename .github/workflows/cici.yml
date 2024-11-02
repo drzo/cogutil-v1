@@ -1,4 +1,12 @@
-version: 2.0
+name: Build-Test-Package Workflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   cogutil:
