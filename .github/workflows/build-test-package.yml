@@ -23,11 +23,11 @@ jobs:
       - name: Start restoring ccache
         run: date +%d-%m-%Y > /tmp/date
       - name: Restore ccache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /ws/ccache
           key: ccache-${{ hashFiles('/tmp/date') }}
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set number of make jobs
         run: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
       - name: CMake Configure
@@ -42,7 +42,7 @@ jobs:
         if: always()
         run: cat build/tests/Testing/Temporary/LastTest.log
       - name: Persist workspace
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: cogutil
           path: /ws/cogutil
@@ -68,7 +68,7 @@ jobs:
           POSTGRES_PASSWORD: cheese
     steps:
       - name: Restore workspace
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: cogutil
           path: /ws
@@ -79,12 +79,12 @@ jobs:
       - name: Checkout AtomSpace
         run: git clone --depth 1 https://github.com/opencog/atomspace .
       - name: Restore GHC Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /root/.stack
           key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}
       - name: Restore Haskell Deps Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /ws/atomspace/opencog/haskell/.stack-work
           key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml', '/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}
@@ -102,12 +102,12 @@ jobs:
         if: always()
         run: cat build/tests/Testing/Temporary/LastTest.log
       - name: Save GHC Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /root/.stack
           key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}
       - name: Save Haskell Deps Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /ws/atomspace/opencog/haskell/.stack-work
           key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml', '/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}
@@ -122,19 +122,19 @@ jobs:
       options: --user root
     steps:
       - name: Restore workspace
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: cogutil
           path: /ws
       - name: Build Debian package
         run: cd build && make install && make package
       - name: Upload package artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: packages
           path: build/packages/
       - name: Save ccache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: /ws/ccache
           key: ccache-${{ hashFiles('/tmp/date') }}
