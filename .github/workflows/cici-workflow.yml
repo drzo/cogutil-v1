@@ -1,6 +1,6 @@
 # .github/workflows/cici-workflow.yml
 
-name: CICI Workflow X
+name: CICI Workflow Y
 
 on:
   push:
@@ -15,1019 +15,182 @@ env:
   MAKEFLAGS: -j2
 
 jobs:
-  cogutil:
-    name: CogUtil Job
+  build:
+    name: Build OpenCog Components
     runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
 
     steps:
-      # Step 1: Checkout Repository
+      # Step 1: Checkout the main repository (if applicable)
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: CMake Configure
-      - name: CMake Configure
+      # Step 2: Install necessary packages
+      - name: Install Dependencies
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
 
-      # Step 6: Build
-      - name: Build
+      # Step 3: Clone and build cogutil
+      - name: Clone cogutil
         run: |
-          cd build
-          make
+          git clone --depth 1 https://github.com/opencog/cogutil /ws/cogutil
 
-      # Step 7: Build tests
-      - name: Build Tests
+      - name: Build cogutil
         run: |
-          cd build
-          make tests
-
-      # Step 8: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 9: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  atomspace:
-    name: AtomSpace Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        PGHOST: opencog-postgres
-        PGUSER: opencog_test
-        PGPASSWORD: cheese
-        CCACHE_DIR: /ws/ccache
-
-    services:
-      opencog-postgres:
-        image: opencog/postgres
-        env:
-          POSTGRES_USER: opencog_test
-          POSTGRES_PASSWORD: cheese
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
+          mkdir -p /ws/cogutil/build
           cd /ws/cogutil/build
-          make install
-          ldconfig
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
 
-      # Step 6: Checkout AtomSpace
-      - name: Checkout AtomSpace
+      # Step 4: Clone and build atomspace
+      - name: Clone atomspace
         run: |
           git clone --depth 1 https://github.com/opencog/atomspace /ws/atomspace
 
-      # Step 7: CMake Configure
-      - name: CMake Configure
+      - name: Build atomspace
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 8: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 9: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 10: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 11: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 12: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  cogserver:
-    name: CogServer Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
+          mkdir -p /ws/atomspace/build
           cd /ws/atomspace/build
-          make install
-          ldconfig
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
 
-      # Step 7: Checkout CogServer
-      - name: Checkout CogServer
+      # Step 5: Clone and build cogserver
+      - name: Clone cogserver
         run: |
           git clone --depth 1 https://github.com/opencog/cogserver /ws/cogserver
 
-      # Step 8: CMake Configure
-      - name: CMake Configure
+      - name: Build cogserver
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 9: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 10: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 11: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 12: Install CogServer
-      - name: Install CogServer
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 13: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  attention:
-    name: Attention Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Restore GHC Cache (if applicable)
-      - name: Restore GHC Cache
-        uses: actions/cache@v3
-        with:
-          path: /root/.stack
-          key: ghc-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ runner.arch }}
-          restore-keys: |
-            ghc-
-
-      # Step 7: Restore Haskell Deps Cache (if applicable)
-      - name: Restore Haskell Deps Cache
-        uses: actions/cache@v3
-        with:
-          path: /ws/atomspace/opencog/haskell/.stack-work
-          key: haskelldeps-${{ hashFiles('/ws/atomspace/opencog/haskell/stack.yaml') }}-${{ hashFiles('/ws/atomspace/opencog/haskell/opencog-atomspace.cabal') }}-${{ runner.arch }}
-          restore-keys: |
-            haskelldeps-
-
-      # Step 8: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 9: Install CogServer
-      - name: Install CogServer
-        run: |
+          mkdir -p /ws/cogserver/build
           cd /ws/cogserver/build
-          make install
-          ldconfig
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
 
-      # Step 10: Checkout Attention
-      - name: Checkout Attention
+      # Step 6: Clone and build attention
+      - name: Clone attention
         run: |
           git clone --depth 1 https://github.com/opencog/attention /ws/attention
 
-      # Step 11: CMake Configure
-      - name: CMake Configure
+      - name: Build attention
         run: |
-          mkdir -p build
-          cd build
+          mkdir -p /ws/attention/build
+          cd /ws/attention/build
           cmake ..
-
-      # Step 12: Build
-      - name: Build
-        run: |
-          cd build
           make
+          sudo make install
+          sudo ldconfig
 
-      # Step 13: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 14: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 15: Install Attention
-      - name: Install Attention
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 16: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  unify:
-    name: Unify Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Checkout Unify
-      - name: Checkout Unify
+      # Step 7: Clone and build unify
+      - name: Clone unify
         run: |
           git clone --depth 1 https://github.com/opencog/unify /ws/unify
 
-      # Step 8: CMake Configure
-      - name: CMake Configure
+      - name: Build unify
         run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 9: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 10: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 11: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 12: Install Unify
-      - name: Install Unify
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 13: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  ure:
-    name: URE Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Install Unify
-      - name: Install Unify
-        run: |
+          mkdir -p /ws/unify/build
           cd /ws/unify/build
-          make install
-          ldconfig
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
 
-      # Step 8: Checkout URE
-      - name: Checkout URE
+      # Step 8: Clone and build ure
+      - name: Clone ure
         run: |
           git clone --depth 1 https://github.com/opencog/ure /ws/ure
 
-      # Step 9: CMake Configure
-      - name: CMake Configure
+      - name: Build ure
         run: |
-          mkdir -p build
-          cd build
+          mkdir -p /ws/ure/build
+          cd /ws/ure/build
           cmake ..
-
-      # Step 10: Build
-      - name: Build
-        run: |
-          cd build
           make
+          sudo make install
+          sudo ldconfig
 
-      # Step 11: Build tests
-      - name: Build Tests
+      # Step 9: Clone and build miner
+      - name: Clone miner
         run: |
-          cd build
-          make tests
+          git clone --depth 1 https://github.com/opencog/miner /ws/miner
 
-      # Step 12: Run tests
+      - name: Build miner
+        run: |
+          mkdir -p /ws/miner/build
+          cd /ws/miner/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 10: Clone and build asmoses
+      - name: Clone asmoses
+        run: |
+          git clone --depth 1 https://github.com/opencog/asmoses /ws/asmoses
+
+      - name: Build asmoses
+        run: |
+          mkdir -p /ws/asmoses/build
+          cd /ws/asmoses/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 11: Clone and build opencog
+      - name: Clone opencog
+        run: |
+          git clone --depth 1 https://github.com/opencog/opencog /ws/opencog
+
+      - name: Build opencog
+        run: |
+          mkdir -p /ws/opencog/build
+          cd /ws/opencog/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 12: Clone and build package
+      - name: Clone package
+        run: |
+          git clone --depth 1 https://github.com/opencog/package /ws/package
+
+      - name: Build package
+        run: |
+          mkdir -p /ws/package/build
+          cd /ws/package/build
+          cmake ..
+          make
+          sudo make install
+          sudo ldconfig
+
+      # Step 13: Run tests for opencog
       - name: Run Tests
         run: |
-          cd build
+          cd /ws/opencog/build
           make check ARGS="$MAKEFLAGS"
-
-      # Step 13: Install URE
-      - name: Install URE
-        run: |
-          cd build
-          make install
-          ldconfig
 
       # Step 14: Print test log
       - name: Print Test Log
         if: always()
         run: |
-          cat build/tests/Testing/Temporary/LastTest.log
+          cat /ws/opencog/build/tests/Testing/Temporary/LastTest.log
 
-  miner:
-    name: Miner Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Install Unify
-      - name: Install Unify
-        run: |
-          cd /ws/unify/build
-          make install
-          ldconfig
-
-      # Step 8: Install URE
-      - name: Install URE
-        run: |
-          cd /ws/ure/build
-          make install
-          ldconfig
-
-      # Step 9: Checkout Miner
-      - name: Checkout Miner
-        run: |
-          git clone --depth 1 https://github.com/opencog/miner /ws/miner
-
-      # Step 10: CMake Configure
-      - name: CMake Configure
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 11: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 12: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 13: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 14: Install Miner
-      - name: Install Miner
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 15: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  asmoses:
-    name: AS-MOSES Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Install Unify
-      - name: Install Unify
-        run: |
-          cd /ws/unify/build
-          make install
-          ldconfig
-
-      # Step 8: Install URE
-      - name: Install URE
-        run: |
-          cd /ws/ure/build
-          make install
-          ldconfig
-
-      # Step 9: Checkout AS-MOSES
-      - name: Checkout AS-MOSES
-        run: |
-          git clone --depth 1 https://github.com/opencog/asmoses /ws/asmoses
-
-      # Step 10: CMake Configure
-      - name: CMake Configure
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 11: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 12: Install AS-MOSES (Temporary Fix)
-      - name: Install AS-MOSES
-        run: |
-          cd build
-          make install
-
-      # Step 13: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 14: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 15: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  opencog:
-    name: OpenCog Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Install CogServer
-      - name: Install CogServer
-        run: |
-          cd /ws/cogserver/build
-          make install
-          ldconfig
-
-      # Step 8: Install Attention
-      - name: Install Attention
-        run: |
-          cd /ws/attention/build
-          make install
-          ldconfig
-
-      # Step 9: Install Unify
-      - name: Install Unify
-        run: |
-          cd /ws/unify/build
-          make install
-          ldconfig
-
-      # Step 10: Install URE
-      - name: Install URE
-        run: |
-          cd /ws/ure/build
-          make install
-          ldconfig
-
-      # Step 11: Install Link Grammar Atomese
-      - name: Install Link Grammar Atomese
-        run: |
-          git clone --depth 1 https://github.com/opencog/lg-atomese /ws/lg-atomese
-          mkdir -p /ws/lg-atomese/build
-          cd /ws/lg-atomese/build
-          cmake ..
-          make -j2
-          make -j2 install
-          ldconfig
-
-      # Step 12: Checkout OpenCog
-      - name: Checkout OpenCog
-        run: |
-          git clone --depth 1 https://github.com/opencog/opencog /ws/opencog
-
-      # Step 13: CMake Configure
-      - name: CMake Configure
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 14: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 15: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 16: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 17: Install OpenCog
-      - name: Install OpenCog
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 18: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-  package:
-    name: Package Job
-    runs-on: ubuntu-latest
-    container:
-      image: opencog/opencog-deps
-      options: --user root
-      env:
-        CCACHE_DIR: /ws/ccache
-
-    steps:
-      # Step 1: Checkout Repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Start restoring ccache
-      - name: Start restoring ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 3: Restore ccache
-      - name: Restore ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
-
-      # Step 4: Set number of make jobs
-      - name: Set number of make jobs
-        run: echo "MAKEFLAGS=-j2" >> $GITHUB_ENV
-
-      # Step 5: Install CogUtil
-      - name: Install CogUtil
-        run: |
-          cd /ws/cogutil/build
-          make install
-          ldconfig
-
-      # Step 6: Install AtomSpace
-      - name: Install AtomSpace
-        run: |
-          cd /ws/atomspace/build
-          make install
-          ldconfig
-
-      # Step 7: Install CogServer
-      - name: Install CogServer
-        run: |
-          cd /ws/cogserver/build
-          make install
-          ldconfig
-
-      # Step 8: Install Attention
-      - name: Install Attention
-        run: |
-          cd /ws/attention/build
-          make install
-          ldconfig
-
-      # Step 9: Install Unify
-      - name: Install Unify
-        run: |
-          cd /ws/unify/build
-          make install
-          ldconfig
-
-      # Step 10: Install URE
-      - name: Install URE
-        run: |
-          cd /ws/ure/build
-          make install
-          ldconfig
-
-      # Step 11: Checkout OpenCog
-      - name: Checkout OpenCog
-        run: |
-          git clone --depth 1 https://github.com/opencog/opencog /ws/opencog
-
-      # Step 12: CMake Configure
-      - name: CMake Configure
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-
-      # Step 13: Build
-      - name: Build
-        run: |
-          cd build
-          make
-
-      # Step 14: Build tests
-      - name: Build Tests
-        run: |
-          cd build
-          make tests
-
-      # Step 15: Run tests
-      - name: Run Tests
-        run: |
-          cd build
-          make check ARGS="$MAKEFLAGS"
-
-      # Step 16: Install OpenCog
-      - name: Install OpenCog
-        run: |
-          cd build
-          make install
-          ldconfig
-
-      # Step 17: Print test log
-      - name: Print Test Log
-        if: always()
-        run: |
-          cat build/tests/Testing/Temporary/LastTest.log
-
-      # Step 18: Build Debian package
+      # Step 15: Build Debian package
       - name: Build Debian Package
         run: |
           cd /ws/cogutil/build
-          make install
           make package
 
-      # Step 19: Store Package Artifacts
-      - name: Store Package Artifacts
+      # Step 16: Upload package artifacts
+      - name: Upload Package Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: packages
           path: /ws/cogutil/build/packages/
-
-      # Step 20: Start storing ccache
-      - name: Start storing ccache
-        run: date +%d-%m-%Y > /tmp/date
-
-      # Step 21: Cache ccache
-      - name: Cache ccache
-        uses: actions/cache@v3
-        with:
-          path: /ws/ccache
-          key: ccache-${{ hashFiles('/tmp/date') }}
-          restore-keys: |
-            ccache-
