@@ -1,6 +1,6 @@
 # .github/workflows/cici-workflow.yml
 
-name: CICI Workflow Y
+name: CICI Workflow
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - master
 
 env:
-  CCACHE_DIR: /ws/ccache
+  CCACHE_DIR: ./ccache
   MAKEFLAGS: -j2
 
 jobs:
@@ -20,177 +20,183 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the main repository (if applicable)
+      # Step 1: Checkout the main repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Install necessary packages
-      - name: Install Dependencies
+      # Step 2: Install necessary system packages
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git libssl-dev libpq-dev
 
-      # Step 3: Clone and build cogutil
+      # Step 3: Set environment variables
+      - name: Set Environment Variables
+        run: |
+          echo "CCACHE_DIR=${CCACHE_DIR}" >> $GITHUB_ENV
+          echo "MAKEFLAGS=${MAKEFLAGS}" >> $GITHUB_ENV
+
+      # Step 4: Clone and build cogutil
       - name: Clone cogutil
         run: |
-          git clone --depth 1 https://github.com/opencog/cogutil /ws/cogutil
+          git clone --depth 1 https://github.com/opencog/cogutil ./cogutil
 
       - name: Build cogutil
         run: |
-          mkdir -p /ws/cogutil/build
-          cd /ws/cogutil/build
+          mkdir -p ./cogutil/build
+          cd ./cogutil/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 4: Clone and build atomspace
+      # Step 5: Clone and build atomspace
       - name: Clone atomspace
         run: |
-          git clone --depth 1 https://github.com/opencog/atomspace /ws/atomspace
+          git clone --depth 1 https://github.com/opencog/atomspace ./atomspace
 
       - name: Build atomspace
         run: |
-          mkdir -p /ws/atomspace/build
-          cd /ws/atomspace/build
+          mkdir -p ./atomspace/build
+          cd ./atomspace/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 5: Clone and build cogserver
+      # Step 6: Clone and build cogserver
       - name: Clone cogserver
         run: |
-          git clone --depth 1 https://github.com/opencog/cogserver /ws/cogserver
+          git clone --depth 1 https://github.com/opencog/cogserver ./cogserver
 
       - name: Build cogserver
         run: |
-          mkdir -p /ws/cogserver/build
-          cd /ws/cogserver/build
+          mkdir -p ./cogserver/build
+          cd ./cogserver/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 6: Clone and build attention
+      # Step 7: Clone and build attention
       - name: Clone attention
         run: |
-          git clone --depth 1 https://github.com/opencog/attention /ws/attention
+          git clone --depth 1 https://github.com/opencog/attention ./attention
 
       - name: Build attention
         run: |
-          mkdir -p /ws/attention/build
-          cd /ws/attention/build
+          mkdir -p ./attention/build
+          cd ./attention/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 7: Clone and build unify
+      # Step 8: Clone and build unify
       - name: Clone unify
         run: |
-          git clone --depth 1 https://github.com/opencog/unify /ws/unify
+          git clone --depth 1 https://github.com/opencog/unify ./unify
 
       - name: Build unify
         run: |
-          mkdir -p /ws/unify/build
-          cd /ws/unify/build
+          mkdir -p ./unify/build
+          cd ./unify/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 8: Clone and build ure
+      # Step 9: Clone and build ure
       - name: Clone ure
         run: |
-          git clone --depth 1 https://github.com/opencog/ure /ws/ure
+          git clone --depth 1 https://github.com/opencog/ure ./ure
 
       - name: Build ure
         run: |
-          mkdir -p /ws/ure/build
-          cd /ws/ure/build
+          mkdir -p ./ure/build
+          cd ./ure/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 9: Clone and build miner
+      # Step 10: Clone and build miner
       - name: Clone miner
         run: |
-          git clone --depth 1 https://github.com/opencog/miner /ws/miner
+          git clone --depth 1 https://github.com/opencog/miner ./miner
 
       - name: Build miner
         run: |
-          mkdir -p /ws/miner/build
-          cd /ws/miner/build
+          mkdir -p ./miner/build
+          cd ./miner/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 10: Clone and build asmoses
+      # Step 11: Clone and build asmoses
       - name: Clone asmoses
         run: |
-          git clone --depth 1 https://github.com/opencog/asmoses /ws/asmoses
+          git clone --depth 1 https://github.com/opencog/asmoses ./asmoses
 
       - name: Build asmoses
         run: |
-          mkdir -p /ws/asmoses/build
-          cd /ws/asmoses/build
+          mkdir -p ./asmoses/build
+          cd ./asmoses/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 11: Clone and build opencog
+      # Step 12: Clone and build opencog
       - name: Clone opencog
         run: |
-          git clone --depth 1 https://github.com/opencog/opencog /ws/opencog
+          git clone --depth 1 https://github.com/opencog/opencog ./opencog
 
       - name: Build opencog
         run: |
-          mkdir -p /ws/opencog/build
-          cd /ws/opencog/build
+          mkdir -p ./opencog/build
+          cd ./opencog/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 12: Clone and build package
+      # Step 13: Clone and build package
       - name: Clone package
         run: |
-          git clone --depth 1 https://github.com/opencog/package /ws/package
+          git clone --depth 1 https://github.com/opencog/package ./package
 
       - name: Build package
         run: |
-          mkdir -p /ws/package/build
-          cd /ws/package/build
+          mkdir -p ./package/build
+          cd ./package/build
           cmake ..
           make
           sudo make install
           sudo ldconfig
 
-      # Step 13: Run tests for opencog
+      # Step 14: Run tests for opencog
       - name: Run Tests
         run: |
-          cd /ws/opencog/build
+          cd ./opencog/build
           make check ARGS="$MAKEFLAGS"
 
-      # Step 14: Print test log
+      # Step 15: Print test log
       - name: Print Test Log
         if: always()
         run: |
-          cat /ws/opencog/build/tests/Testing/Temporary/LastTest.log
+          cat ./opencog/build/tests/Testing/Temporary/LastTest.log
 
-      # Step 15: Build Debian package
+      # Step 16: Build Debian package
       - name: Build Debian Package
         run: |
-          cd /ws/cogutil/build
+          cd ./cogutil/build
           make package
 
-      # Step 16: Upload package artifacts
+      # Step 17: Upload package artifacts
       - name: Upload Package Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: packages
-          path: /ws/cogutil/build/packages/
+          path: ./cogutil/build/packages/
