@@ -24,8 +24,8 @@ jobs:
         script-content: cmake ..
       - type: script
         name: '1-1-6: Make: Install'
-        working-directory: cogutil/build
-        script-content: sudo make install &&
+        working-directory: cogutil
+        script-content: make install
       - type: script
         name: '1-1-7: Build Tests'
         working-directory: cogutil/build
