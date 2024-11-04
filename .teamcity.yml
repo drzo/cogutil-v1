@@ -1,0 +1,150 @@
+name: 'Flow 1: Cogutil-AtomSpace-Cogserver'
+jobs:
+  cogutil:
+    name: 'Job 1-1: CogUtil Build'
+    runs-on: Linux-Large
+    steps:
+      - type: script
+        name: '1-1-1: Update Packages'
+        script-content: apt update
+      - type: script
+        name: '1-1-2: Set Make Flags'
+        script-content: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - type: script
+        name: '1-1-3: Make Dir: Build'
+        working-directory: cogutil
+        script-content: mkdir build
+      - type: script
+        name: '1-1-4: Change Dir: Build'
+        working-directory: cogutil
+        script-content: cd build
+      - type: script
+        name: '1-1-5: Configure CMake'
+        working-directory: cogutil/build
+        script-content: cmake ..
+      - type: script
+        name: '1-1-6: Make: Install'
+        working-directory: cogutil/build
+        script-content: sudo make install &&
+      - type: script
+        name: '1-1-7: Build Tests'
+        working-directory: cogutil/build
+        script-content: make tests
+      - type: script
+        name: '1-1-8: Run Tests'
+        working-directory: cogutil/build
+        script-content: make check ARGS="$MAKEFLAGS"
+      - type: script
+        name: '1-1-9: Print Test Log'
+        working-directory: cogutil/build
+        script-content: cat tests/Testing/Temporary/LastTest.log
+    files-publication:
+      - cogutil/build/**
+  atomspace:
+    name: 'Job 1-2: AtomSpace Build'
+    runs-on: Linux-Large
+    dependencies:
+      - cogutil
+    steps:
+      - type: script
+        name: Set Make Flags
+        script-content: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - type: script
+        name: Install CogUtil
+        script-content: |-
+          cd cogutil/build
+          make install
+          ldconfig
+      - type: script
+        name: Clone AtomSpace Repository
+        script-content: git clone --depth 1 https://github.com/opencog/atomspace atomspace
+      - type: script
+        name: Build and Install AtomSpace
+        working-directory: atomspace
+        script-content: mkdir build && cd build && cmake .. make install && ldconfig
+      - type: script
+        name: Print Test Log
+        working-directory: atomspace/build
+        script-content: cat tests/Testing/Temporary/LastTest.log
+    files-publication:
+      - atomspace/build/**
+  Job1CogUtilBuildClone:
+    name: 'Job 2-1: CogUtil Build clone'
+    runs-on: Linux-Large
+    steps:
+      - type: script
+        name: Build Docker Image
+        script-content: >-
+          docker build --pull --file ./docker/Dockerfile --tag
+          ${DRepoName}:${DImageName}-${BUILD_NUMBER} .
+
+          docker push ${DRepoName}:${DImageName}-${BUILD_NUMBER}
+      - type: script
+        name: Set Make Flags
+        script-content: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - type: script
+        name: Configure CMake
+        working-directory: cogutil
+        script-content: |-
+          mkdir build
+          cd build
+          cmake ..
+      - type: script
+        name: Build CogUtil
+        working-directory: cogutil/build
+        script-content: make
+      - type: script
+        name: Build Tests
+        working-directory: cogutil/build
+        script-content: make tests
+      - type: script
+        name: Run Tests
+        working-directory: cogutil/build
+        script-content: make check ARGS="$MAKEFLAGS"
+      - type: script
+        name: Print Test Log
+        working-directory: cogutil/build
+        script-content: cat tests/Testing/Temporary/LastTest.log
+    files-publication:
+      - cogutil/build/**
+  Job2AtomSpaceBuildClone:
+    name: 'Job 2-2: AtomSpace Build clone'
+    runs-on: Linux-Large
+    dependencies:
+      - Job1CogUtilBuildClone:
+          files:
+            - cogutil/build/**
+    steps:
+      - type: script
+        name: Set Make Flags
+        script-content: echo "export MAKEFLAGS=-j2" >> $BASH_ENV
+      - type: script
+        name: Install CogUtil
+        script-content: |-
+          cd cogutil/build
+          make install
+          ldconfig
+      - type: script
+        name: Clone AtomSpace Repository
+        script-content: git clone --depth 1 https://github.com/opencog/atomspace atomspace
+      - type: script
+        name: Build and Install AtomSpace
+        working-directory: atomspace
+        script-content: |-
+          mkdir build
+          cd build
+          cmake ..
+          make install
+          ldconfig
+      - type: script
+        name: Print Test Log
+        working-directory: atomspace/build
+        script-content: cat tests/Testing/Temporary/LastTest.log
+    files-publication:
+      - atomspace/build/**
+parameters:
+  DImageName: SpringBoot
+  DRepoName: opencog/opencog-deps
+  PGHOST: opencog-postgres
+  PGUSER: opencog_test
+  PGPASSWORD: cheese
